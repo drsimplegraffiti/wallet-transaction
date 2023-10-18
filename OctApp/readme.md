@@ -30,6 +30,13 @@ dotnet add package BCrypt.Net-Next
 dotnet add package Microsoft.AspNetCore.Authentication.JwtBearer
 dotnet add package Microsoft.AspNetCore.Mvc.NewtonsoftJson
 
+
+// serilogs
+dotnet add package Serilog.AspNetCore
+dotnet add package Serilog.Sinks.Console
+dotnet add package Serilog.Sinks.File
+
+
 ```
 
 ##### BaseEntity
@@ -624,6 +631,20 @@ using OctApp.Utils.Impl;
 using OctApp.Utils.Interface;
 
 var builder = WebApplication.CreateBuilder(args);
+
+// configure logging
+builder.Host.UseSerilog((context, config) =>
+{
+    config
+        .MinimumLevel.Information()
+        .MinimumLevel.Override("Microsoft", LogEventLevel.Warning)
+        .MinimumLevel.Override("Microsoft.Hosting.Lifetime", LogEventLevel.Information)
+        .Enrich.FromLogContext()
+        .WriteTo.Console()
+        .WriteTo.File("logs/log.txt", rollingInterval: RollingInterval.Day);
+});
+
+
 
 // Add services to the container.
 builder.Services.AddDbContext<DataContext>(options =>

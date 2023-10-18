@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.IdentityModel.Tokens.Jwt;
 using System.Linq;
+using System.Security.Claims;
 using System.Text;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Mvc;
@@ -47,24 +48,18 @@ namespace OctApp.Utils
             {
                 tokenHandler.ValidateToken(token, new TokenValidationParameters
                 {
-                    // ValidateIssuer = true,
-                    // ValidateAudience = true,
-                    // ValidateLifetime = true,
-                    // ValidateIssuerSigningKey = true,
-                    // ValidIssuer = _configuration["JWT:Issuer"],
-                    // ValidAudience = _configuration["JWT:Audience"],
-                    // IssuerSigningKey = new SymmetricSecurityKey(key)
+                 
                      ValidateIssuerSigningKey = true,
                     IssuerSigningKey = new SymmetricSecurityKey(key),
-                    ValidateIssuer = false, // Set to true if you want to validate the issuer
-                    ValidateAudience = false, // Set to true if you want to validate the audience
-                    ValidateLifetime = true // Set to true if you want to validate token expiration
+                    ValidateIssuer = false, 
+                    ValidateAudience = false, 
+                    ValidateLifetime = true 
                 }, out SecurityToken validatedToken);
 
                 var jwtToken = (JwtSecurityToken)validatedToken;
                 var userId = int.Parse(jwtToken.Claims.First(x => x.Type == "nameid").Value);
 
-                context.HttpContext.Items["User"] = userId;
+                context.HttpContext.User = new ClaimsPrincipal(new ClaimsIdentity(new[] { new Claim("userId", userId.ToString()) }));
             }
             catch (Exception ex)
             {
@@ -73,4 +68,9 @@ namespace OctApp.Utils
             }
         }
     }
+}
+
+[AttributeUsage(AttributeTargets.Method, Inherited = false, AllowMultiple = false)]
+public sealed class SkipTokenValidationAttribute : Attribute
+{
 }
