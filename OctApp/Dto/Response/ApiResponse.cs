@@ -7,36 +7,25 @@ namespace OctApp.Dto.Response
 {
     public class ApiResponse<T>
     {
-        public ApiResponse(int statusCode, T data = default!, string message = null!)
-        {
-            StatusCode = statusCode;
-            Data = data;
-            Message = message ?? GetDefaultMessageForStatusCode(statusCode) ?? "Unknown Status Code";
-        }
+        public T Data { get; set; } = default!;
+        public bool Success { get; set; } = true;
+        public string Message { get; set; } = string.Empty;
 
-        public int StatusCode { get; set; }
-        public T Data { get; set; }
-        public string Message { get; set; }
+        public int StatusCode { get; set; } = 200;
 
-        private string GetDefaultMessageForStatusCode(int statusCode)
-        {
-            return statusCode switch
-            {
-                200 => "Success",
-                201 => "Created",
-                202 => "Accepted",
-                203 => "Non-Authoritative Information",
-                204 => "No Content",
-                400 => "Bad Request",
-                401 => "Unauthorized",
-                403 => "Forbidden",
-                404 => "Resource Not Found",
-                409 => "Resource Conflict",
-                500 => "Internal Server Error",
-                501 => "Not Implemented",
-                502 => "Bad Gateway",
-                _ => "Unknown Status Code"
-            };
-        }
+
+    }
+
+    // Error response
+     public class ErrorResponse
+    {
+        public string Message { get; set; } = string.Empty;
+        public bool Success { get; set; } = false;
+        public string? Error { get; set; } = string.Empty;
+        public string? Description { get; set; } = string.Empty;
+
+        public int StatusCode { get; set; } = 500;
+
+
     }
 }

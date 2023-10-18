@@ -16,10 +16,12 @@ namespace OctApp.Controllers
     public class UserController : ControllerBase
     {
 
+        private readonly ILogger<UserController> _logger;
         private readonly IUserService _userService;
-        public UserController(IUserService userService)
+        public UserController(IUserService userService, ILogger<UserController> logger)
         {
             _userService = userService;
+            _logger = logger;
         }
 
 
@@ -27,6 +29,21 @@ namespace OctApp.Controllers
         public async Task<IActionResult> CreateWalletAsync([FromBody] CreateWalletOthersDto createWalletDto)
         {
             var response = await _userService.CreateWalletAsync(createWalletDto);
+            if (!response.Success)
+            {
+                return BadRequest(response);
+            }
+            return Ok(response);
+        }
+
+        [HttpPost("transfer")]
+        public async Task<IActionResult> TransferAsync([FromBody] TransferFundDto transferDto)
+        {
+            var response = await _userService.TransferAsync(transferDto);
+            if (!response.Success)
+            {
+                return BadRequest(response);
+            }
             return Ok(response);
         }
     }

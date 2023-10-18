@@ -38,7 +38,7 @@ namespace OctApp.Services.Impl
                     var user = _dbContext.Users.FirstOrDefault(u => u.Email == createUserDto.Email);
                     if (user != null)
                     {
-                        return new ApiResponse<dynamic>(400, message: "Email already exists");
+                        return new ApiResponse<dynamic>{Success = false, StatusCode = 409, Message = "User already exists"};
                     }
 
                     var newUser = new User
@@ -75,13 +75,22 @@ namespace OctApp.Services.Impl
                     await _dbContext.SaveChangesAsync();
 
                     transaction.Commit();
-                    return new ApiResponse<dynamic>(200, "User created successfully");
+                    // return new ApiResponse<dynamic>(200, "User created successfully");
+                    return new ApiResponse<dynamic>{
+                        Success = true, 
+                        StatusCode = 200, 
+                        Data = new
+                        {
+                            user = newUser,
+                            wallet
+                        }
+                    };
                 }
                 catch (Exception e)
                 {
                     Console.WriteLine(e);
                     transaction.Rollback();
-                    return new ApiResponse<dynamic>(400, message: "Error creating user + " + e.Message);
+                    return new ApiResponse<dynamic>{Success = false, StatusCode = 500, Message = e.Message};
                 }
             }
         }
@@ -92,12 +101,20 @@ namespace OctApp.Services.Impl
             var user = _dbContext.Users.FirstOrDefault(u => u.Email == loginDto.Email);
             if (user == null)
             {
-                return new ApiResponse<dynamic>(404, message: "User not found");
+                return new ApiResponse<dynamic>{
+                    Success = false, 
+                    StatusCode = 404, 
+                    Message = "User not found"
+                };
             }
 
             if (!_passwordService.VerifyPassword(loginDto.Password, user.PasswordHash))
             {
-                return new ApiResponse<dynamic>(400, message: "Invalid password");
+                return new ApiResponse<dynamic>{
+                    Success = false, 
+                    StatusCode = 400, 
+                    Message = "Invalid password"
+                };
             }
 
             // remove existing tokens for user
@@ -118,32 +135,51 @@ namespace OctApp.Services.Impl
 
             await _dbContext.SaveChangesAsync();
 
-            return new ApiResponse<dynamic>(200, new
-            {
-                // user = user,
-                token,
-                refreshToken
-            });
+            return new ApiResponse<dynamic>{
+                Success = true, 
+                StatusCode = 202, 
+                Message = "Login successful",
+                Data = new
+                {
+                    // user,
+                    token,
+                    refreshToken
+                }
+            };
 
         }
 
         public async Task<ApiResponse<dynamic>> RefreshTokenAsync(RefreshTokenDto refreshTokenDto)
         {
-            var token = _dbContext.Tokens.FirstOrDefault(t => t.RefreshToken == refreshTokenDto.RefreshToken);
+           try
+           {
+             var token = _dbContext.Tokens.FirstOrDefault(t => t.RefreshToken == refreshTokenDto.RefreshToken);
             if (token == null)
             {
-                return new ApiResponse<dynamic>(404, message: "Token not found");
+                return new ApiResponse<dynamic>{
+                    Success = false, 
+                    StatusCode = 404, 
+                    Message = "Token not found"
+                };
             }
 
             if (token.Expires < DateTime.UtcNow)
             {
-                return new ApiResponse<dynamic>(400, message: "Token has expired");
+                return new ApiResponse<dynamic>{
+                    Success = false, 
+                    StatusCode = 400, 
+                    Message = "Token has expired"
+                };
             }
 
             var user = _dbContext.Users.FirstOrDefault(u => u.Id == token.UserId);
             if (user == null)
             {
-                return new ApiResponse<dynamic>(404, message: "User not found");
+                return new ApiResponse<dynamic>{
+                    Success = false, 
+                    StatusCode = 404, 
+                    Message = "User not found"
+                };
             }
 
             // remove existing tokens for user
@@ -164,12 +200,26 @@ namespace OctApp.Services.Impl
 
             await _dbContext.SaveChangesAsync();
 
-            return new ApiResponse<dynamic>(200, new
-            {
-                // user = user,
-                token = newToken,
-                refreshToken = newRefreshToken
-            });
+            return new ApiResponse<dynamic>{
+                Success = true, 
+                StatusCode = 200, 
+                Data = new
+                {
+                    user,
+                    token = newToken,
+                    refreshToken = newRefreshToken
+                }
+            };
+           }
+           catch (Exception e)
+           {
+                Console.WriteLine(e);
+                return new ApiResponse<dynamic>{
+                     Success = false, 
+                    //  StatusCode = 
+                     Message = e.Message
+                };
+           }
         }
     }
 }

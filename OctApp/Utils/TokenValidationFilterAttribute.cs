@@ -36,8 +36,13 @@ namespace OctApp.Utils
             var token = context.HttpContext.Request.Headers["Authorization"].FirstOrDefault()?.Split(" ").Last();
             if (token == null)
             {
-                context.Result = new JsonResult(new ApiResponse<dynamic>(401, message: "Unauthorized"));
-                return;
+                context.HttpContext.Response.StatusCode = 401;
+                 context.Result = new ObjectResult(new ApiResponse<dynamic>{
+                    Success = false,
+                    StatusCode = 401,
+                    Message = "Unauthorized, provide a token"
+                 });
+                    return;
             }
 
             var tokenHandler = new JwtSecurityTokenHandler();
@@ -60,11 +65,33 @@ namespace OctApp.Utils
                 var userId = int.Parse(jwtToken.Claims.First(x => x.Type == "nameid").Value);
 
                 context.HttpContext.User = new ClaimsPrincipal(new ClaimsIdentity(new[] { new Claim("userId", userId.ToString()) }));
+            } catch(ArgumentException ex)
+            {
+                _logger.LogError(ex, "Error validating token");
+                context.Result = new ObjectResult(new ApiResponse<dynamic>{
+                    Success = false,
+                    StatusCode = 401,
+                    Message = "Error validating token"
+                 });
             }
+            catch (SecurityTokenException ex)
+            {
+                _logger.LogError(ex, "Error validating token");
+                context.Result = new ObjectResult(new ApiResponse<dynamic>{
+                    Success = false,
+                    StatusCode = 401,
+                    Message = "Unauthorized"
+                 });
+            }
+
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error validating token");
-                context.Result = new JsonResult(new ApiResponse<dynamic>(401, message: "Unauthorized"));
+                context.Result = new ObjectResult(new ApiResponse<dynamic>{
+                    Success = false,
+                    StatusCode = 401,
+                    Message = "Unauthorized"
+                 });
             }
         }
     }

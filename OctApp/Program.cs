@@ -1,6 +1,8 @@
 using System.Text;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
+using Newtonsoft.Json.Serialization;
+using OctApp;
 using OctApp.Data;
 using OctApp.Services.Impl;
 using OctApp.Services.Interface;
@@ -12,7 +14,7 @@ using Serilog.Events;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// configure serilog
+// Configure Serilog
 builder.Host.UseSerilog((context, config) =>
 {
     config
@@ -24,26 +26,19 @@ builder.Host.UseSerilog((context, config) =>
         .WriteTo.File("logs/log.txt", rollingInterval: RollingInterval.Day);
 });
 
-
-//add accessor
+// Add services and configurations
+builder.Services.ConfigureSwagger();
 builder.Services.AddHttpContextAccessor();
-
-// Add services to the container.
 builder.Services.AddDbContext<DataContext>(options =>
 {
     options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection"));
 });
-
-// Add filters to the container.
 builder.Services.AddScoped<TokenValidationFilterAttribute>();
-
-// Add services to the container.
 builder.Services.AddScoped<IAuthService, AuthService>();
 builder.Services.AddScoped<IPasswordService, PasswordService>();
 builder.Services.AddScoped<ITokenService, TokenService>();
 builder.Services.AddScoped<IWalletService, WalletService>();
 builder.Services.AddScoped<IUserService, UserService>();
-
 builder.Services.AddAuthentication("Bearer")
     .AddJwtBearer("Bearer", options =>
     {
@@ -59,30 +54,27 @@ builder.Services.AddAuthentication("Bearer")
         };
     })
     .AddCookie();
-
-
-
-
 builder.Services.AddControllers();
-// Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
+// .AddNewtonsoftJson(options =>
+// {
+//     options.SerializerSettings.ContractResolver = new DefaultContractResolver
+//     {
+//         NamingStrategy = new SnakeCaseNamingStrategy()
+//     };
+// });
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 
 var app = builder.Build();
 
-// Configure the HTTP request pipeline.
+// Configure the HTTP request pipeline
 if (app.Environment.IsDevelopment())
 {
     app.UseSwagger();
     app.UseSwaggerUI();
 }
 
-app.UseHttpsRedirection();
-
 app.UseAuthentication();
-
 app.UseAuthorization();
-
 app.MapControllers();
-
 app.Run();

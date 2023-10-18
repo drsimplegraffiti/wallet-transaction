@@ -4,6 +4,7 @@ using System.Linq;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Mvc;
 using OctApp.Dto.Request;
+using OctApp.Dto.Response;
 using OctApp.Services.Interface;
 
 namespace OctApp.Controllers
@@ -26,21 +27,40 @@ namespace OctApp.Controllers
         public async Task<IActionResult> LoginAsync([FromBody] LoginDto loginDto)
         {
             var response = await _authService.LoginAsync(loginDto);
-            return Ok(response);
+            if (!response.Success)
+            {
+                return BadRequest(response);
+            }
+            return StatusCode(response.StatusCode, response);
         }
 
         [HttpPost("refresh-token")]
         public async Task<IActionResult> RefreshTokenAsync([FromBody] RefreshTokenDto refreshTokenDto)
         {
             var response = await _authService.RefreshTokenAsync(refreshTokenDto);
+            if (!response.Success)
+            {
+                return BadRequest(response);
+            }
             return Ok(response);
         }
 
         [HttpPost("register")]
         public async Task<IActionResult> RegisterAsync([FromBody] CreateUserDto createUserDto)
         {
-            var response = await _authService.CreateUserAsync(createUserDto);
-            return Ok(response);
+           try
+           {
+             var response = await _authService.CreateUserAsync(createUserDto);
+             if(response.Success)
+             {
+                 return Ok(response);
+             }
+                return StatusCode(response.StatusCode, response);
+           }
+           catch (Exception e)
+           {
+            return BadRequest(e.Message);
+           }
         }
     }
 }

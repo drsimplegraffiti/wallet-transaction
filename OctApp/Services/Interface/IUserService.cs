@@ -10,13 +10,8 @@ namespace OctApp.Services.Interface
     public interface IUserService
     {
         Task<ApiResponse<dynamic>> CreateWalletAsync(CreateWalletOthersDto createWalletDto);
+
+        Task<ApiResponse<dynamic>> TransferAsync(TransferFundDto transferDto);
 }
 
-    public class CreateWalletOthersDto
-    {
-        public string Name { get; set; } = "Binance Naira Balance";
-
-        public string Symbol { get; set; } = "BNB";
-        
-    }
 }

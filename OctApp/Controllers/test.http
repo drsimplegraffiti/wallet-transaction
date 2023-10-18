@@ -1,0 +1,11 @@
+POST http://localhost:5037/api/User/transfer
+Content-Type: application/json
+Authorization: "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJlbWFpbCI6InVzZXJAZXhhbXBsZS5jb20iLCJyb2xlIjoiVXNlciIsIm5hbWVpZCI6IjIiLCJuYmYiOjE2OTc2MzE5MjgsImV4cCI6MTY5NzcxODMyOCwiaWF0IjoxNjk3NjMxOTI4fQ.5S8FP0BAzjmOXkWYiC4XI8RTSl89vLq7hXXyz-3EIWg"
+
+
+{
+  "senderAddress": "string",
+  "recipientAddress": "string",
+  "amount": 0,
+  "symbol": "string"
+}
