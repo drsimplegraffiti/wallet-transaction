@@ -5,8 +5,9 @@ using System.Threading.Tasks;
 
 namespace OctApp.Utils.Interface
 {
-    public interface IWalletService
+    public interface IKeyService
     {
-      
+    string GeneratePrivateKey();
+    string GeneratePublicKey();
     }
 }

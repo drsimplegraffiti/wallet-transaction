@@ -46,5 +46,27 @@ namespace OctApp.Controllers
             }
             return Ok(response);
         }
+
+        [HttpPost("switch-environment")]
+        public async Task<IActionResult> SwitchEnvironmentAsync([FromBody] SwitchEnvironmentDto switchEnvironmentDto)
+        {
+            var response = await _userService.SwitchEnvironmentAsync(switchEnvironmentDto);
+            if (!response.Success)
+            {
+                return BadRequest(response);
+            }
+            return Ok(response);
+        }
+
+        [HttpPost("show-balance")]
+        public async Task<IActionResult> ShowBalanceAsync()
+        {
+            var response = await _userService.ShowBalanceAsync();
+            if (!response.Success)
+            {
+                return BadRequest(response);
+            }
+            return Ok(response);
+        }
     }
 }

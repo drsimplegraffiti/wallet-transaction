@@ -8,6 +8,7 @@ using OctApp.Dto.Request;
 using OctApp.Dto.Response;
 using OctApp.Models;
 using OctApp.Services.Interface;
+using OctApp.Utils;
 using OctApp.Utils.Interface;
 
 namespace OctApp.Services.Impl
@@ -18,6 +19,8 @@ namespace OctApp.Services.Impl
 
         private readonly IWalletService _walletService;
         private readonly DataContext _dbContext;
+
+        private readonly IKeyService _keyService;
         private readonly ITokenService _tokenService;
 
         private readonly ILogger<UserService> _logger;
@@ -26,9 +29,10 @@ namespace OctApp.Services.Impl
 
 
         public UserService(
-            IWalletService walletService, 
-            DataContext dbContext, ITokenService tokenService, 
-            ILogger<UserService> logger, 
+            IWalletService walletService,
+            DataContext dbContext, ITokenService tokenService,
+            ILogger<UserService> logger,
+            IKeyService keyService,
             IHttpContextAccessor httpContextAccessor = null!
             )
         {
@@ -36,6 +40,7 @@ namespace OctApp.Services.Impl
             _dbContext = dbContext;
             _tokenService = tokenService;
             _logger = logger;
+            _keyService = keyService;
             _httpContextAccessor = httpContextAccessor;
         }
         public async Task<ApiResponse<dynamic>> CreateWalletAsync(CreateWalletOthersDto createWalletDto)
@@ -47,29 +52,40 @@ namespace OctApp.Services.Impl
                     var principal = _httpContextAccessor.HttpContext!.User;
                     if (principal == null)
                     {
-                       return new ApiResponse<dynamic>{Success = false, StatusCode = 401, Message = "Unauthorized"};
+                        return new ApiResponse<dynamic> { Success = false, StatusCode = 401, Message = "Unauthorized" };
                     }
                     var userIdClaim = principal.Claims.FirstOrDefault(c => c.Type == "userId")?.Value;
 
                     _logger.LogInformation("userIdClaim:********* " + userIdClaim);
 
-                    if (userIdClaim == null)
+                    if (userIdClaim == null || !int.TryParse(userIdClaim, out int userId))
                     {
-                        return new ApiResponse<dynamic>{Success = false, StatusCode = 401, Message = "Unauthorized"};
+                        return new ApiResponse<dynamic> { Success = false, StatusCode = 401, Message = "Unauthorized" };
                     }
 
-                    //create a wallet for the user
-                    var (walletAddress, publicKey, privateKey) = _walletService.GenerateWallet();
+                    // Generate test wallet keys
+                    string testPrivateKey = _keyService.GeneratePrivateKey();
+                    string testPublicKey = _keyService.GeneratePublicKey();
+
+                    // Generate live wallet keys
+                    string livePrivateKey = _keyService.GeneratePrivateKey();
+                    string livePublicKey = _keyService.GeneratePublicKey();
+
+
                     var wallet = new Wallet
                     {
-                        Name = createWalletDto.Name,
-                        Symbol = createWalletDto.Symbol,
-                        Address = walletAddress,
-                        PublicKey = publicKey,
-                        PrivateKey = privateKey,
-                        UserId = int.Parse(userIdClaim),
-                        Balance = 0,
-                        AppEnvironmentId = 1
+                        AccountNumber = AccountNumberGenerator.GenerateAccountNumber(),
+                        TestPrivateKey = "Test" + "-" + testPrivateKey,
+                        TestPublicKey = "Test" + "-" + testPublicKey,
+                        LivePrivateKey = "Live" + "-" + livePrivateKey,
+                        LivePublicKey = "Live" + "-" + livePublicKey,
+                        TestBalance = 1000m, // Set test balance
+                        LiveBalance = 0m,
+                        AccountName = $"Binance Naira Balance {userId}",
+                        AppEnvironmentId = 2, // Assume 2 represents the test environment
+                        UserId = userId,
+                        CreatedAt = DateTime.UtcNow,
+                        UpdatedAt = DateTime.UtcNow
                     };
 
                     _dbContext.Wallets.Add(wallet);
@@ -77,22 +93,28 @@ namespace OctApp.Services.Impl
 
                     transaction.Commit();
 
-
-                    return new ApiResponse<dynamic>{Success = true, StatusCode = 200, Data = new
+                    return new ApiResponse<dynamic>
                     {
-                        walletAddress,
-                        publicKey,
-                        privateKey
-                    }};
+                        Success = true,
+                        StatusCode = 200,
+                        Data = new
+                        {
+
+
+                        }
+                    };
+
 
                 }
                 catch (Exception e)
                 {
                     transaction.Rollback();
-                    return new ApiResponse<dynamic>{Success = false, StatusCode = 500, Message = e.Message};
+                    return new ApiResponse<dynamic> { Success = false, StatusCode = 500, Message = e.Message };
                 }
             }
         }
+
+
         public async Task<ApiResponse<dynamic>> TransferAsync(TransferFundDto transferDto)
         {
             using (var transaction = _dbContext.Database.BeginTransaction())
@@ -102,70 +124,212 @@ namespace OctApp.Services.Impl
                     var principal = _httpContextAccessor.HttpContext?.User;
                     if (principal == null)
                     {
-                        return new ApiResponse<dynamic>{Success = false, StatusCode = 401, Message = "Unauthorized"};
+                        return new ApiResponse<dynamic> { Success = false, StatusCode = 401, Message = "Unauthorized" };
                     }
 
                     var userIdClaim = principal.FindFirst("userId")?.Value;
                     if (userIdClaim == null || !int.TryParse(userIdClaim, out int userId))
                     {
-                        return new ApiResponse<dynamic>{Success = false, StatusCode = 401, Message = "Unauthorized"};
+                        return new ApiResponse<dynamic> { Success = false, StatusCode = 401, Message = "Unauthorized" };
                     }
 
                     var user = _dbContext.Users.FirstOrDefault(u => u.Id == userId);
                     if (user == null)
                     {
-                        return new ApiResponse<dynamic>{Success = false, StatusCode = 404, Message = "User not found"};
+                        return new ApiResponse<dynamic> { Success = false, StatusCode = 404, Message = "User not found" };
                     }
 
-                    var wallet = await _dbContext.Wallets.Where(w => w.Address == transferDto.Sender).FirstOrDefaultAsync();
+
+                    // check if AppEnv is live or test and write a condtion to transfer to the right wallet
+                    var wallet = _dbContext.Wallets.FirstOrDefault(w => w.UserId == userId && w.AppEnvironmentId == 2);
                     if (wallet == null)
                     {
-                        return new ApiResponse<dynamic>{Success = false, StatusCode = 404, Message = "Sender wallet not found"};
+                        return new ApiResponse<dynamic> { Success = false, StatusCode = 404, Message = "Wallet not found" };
                     }
 
-                    if (wallet.UserId != userId)
+                    // Check if the sender has enough balance
+                    if (wallet.TestBalance < transferDto.Amount)
                     {
-                        return new ApiResponse<dynamic>{Success = false, StatusCode = 401, Message = "Unauthorized"};
+                        return new ApiResponse<dynamic> { Success = false, StatusCode = 400, Message = "Insufficient balance" };
                     }
 
-
-                    if (wallet.Balance < transferDto.Amount)
+                    // Check if the recipient exists
+                    var recipient = _dbContext.Users.FirstOrDefault(u => u.Email == transferDto.Recipient);
+                    if (recipient == null)
                     {
-                        return new ApiResponse<dynamic>{Success = false, StatusCode = 400, Message = "Insufficient balance"};
+                        return new ApiResponse<dynamic> { Success = false, StatusCode = 404, Message = "Recipient not found" };
                     }
 
-                    var recipientWallet = _dbContext.Wallets.FirstOrDefault(w => w.Address == transferDto.Recipient);
+                    // Check if the recipient has a wallet
+                    var recipientWallet = _dbContext.Wallets.FirstOrDefault(w => w.UserId == recipient.Id && w.AppEnvironmentId == 2);
                     if (recipientWallet == null)
                     {
-                        return new ApiResponse<dynamic>{Success = false, StatusCode = 404, Message = "Recipient wallet not found"};
+                        return new ApiResponse<dynamic> { Success = false, StatusCode = 404, Message = "Recipient wallet not found" };
                     }
 
-                    var newBalance = wallet.Balance - transferDto.Amount;
-
-                    wallet.Balance = newBalance;
+                    // Update the sender's balance
+                    wallet.TestBalance -= transferDto.Amount;
                     _dbContext.Wallets.Update(wallet);
-                    await _dbContext.SaveChangesAsync();
 
-                    recipientWallet.Balance += transferDto.Amount;
+                    // Update the recipient's balance
+                    recipientWallet.TestBalance += transferDto.Amount;
                     _dbContext.Wallets.Update(recipientWallet);
+
+                    // Create a transaction record
+                    var transactionRecord = new Transaction
+                    {
+                        Sender = user.Email,
+                        Recipient = recipient.Email,
+                        Amount = transferDto.Amount,
+                        Symbol = transferDto.Symbol,
+                        AppEnvironmentId = 2,
+                        CreatedAt = DateTime.UtcNow,
+                        UpdatedAt = DateTime.UtcNow
+                    };
+
+                    _dbContext.Transactions.Add(transactionRecord);
                     await _dbContext.SaveChangesAsync();
 
                     transaction.Commit();
-                   
-                    return new ApiResponse<dynamic>{Success = true, StatusCode = 200, Data = new
+
+                    return new ApiResponse<dynamic>
                     {
-                        walletAddress = wallet.Address,
-                        balance = wallet.Balance
-                    }};
+                        Success = true,
+                        StatusCode = 200,
+                        Data = new
+                        {
+                            sender = wallet,
+                            recipient = recipientWallet,
+                            transaction = transactionRecord
+                        }
+                    };
                 }
 
                 catch (Exception e)
                 {
                     transaction.Rollback();
-                    return new ApiResponse<dynamic>{Success = false, StatusCode = 500, Message = e.Message};
+                    return new ApiResponse<dynamic> { Success = false, StatusCode = 500, Message = e.Message };
                 }
             }
         }
 
+        public async Task<ApiResponse<dynamic>> SwitchEnvironmentAsync(SwitchEnvironmentDto switchEnvironmentDto)
+        {
+            try
+            {
+                var principal = _httpContextAccessor.HttpContext?.User;
+                if (principal == null)
+                {
+                    return new ApiResponse<dynamic> { Success = false, StatusCode = 401, Message = "Unauthorized" };
+                }
+
+                var userIdClaim = principal.FindFirst("userId")?.Value;
+                if (userIdClaim == null || !int.TryParse(userIdClaim, out int userId))
+                {
+                    return new ApiResponse<dynamic> { Success = false, StatusCode = 401, Message = "Unauthorized" };
+                }
+
+                var user = _dbContext.Users.FirstOrDefault(u => u.Id == userId);
+                if (user == null)
+                {
+                    return new ApiResponse<dynamic> { Success = false, StatusCode = 404, Message = "User not found" };
+                }
+                //check if user is already in the environment he wants to switch to
+                if (user.AppEnvironmentId == switchEnvironmentDto.EnvironmentId)
+                {
+                    return new ApiResponse<dynamic>
+                    {
+                        Success = true,
+                        StatusCode = 200,
+                        Message = $"User is already in {(switchEnvironmentDto.EnvironmentId == 1 ? "Live" : "Test")} environment",
+                        Data = new
+                        {
+                            AppEnvironmentId = user.AppEnvironmentId
+                        }
+                    };
+                }
+                // change the user environment to live or test
+                user.AppEnvironmentId = switchEnvironmentDto.EnvironmentId;
+                _dbContext.Users.Update(user);
+                await _dbContext.SaveChangesAsync();
+
+                // switch the user wallet to live or test
+                var wallet = _dbContext.Wallets.FirstOrDefault(w => w.UserId == userId);
+                if (wallet == null)
+                {
+                    return new ApiResponse<dynamic> { Success = false, StatusCode = 404, Message = "Wallet not found" };
+                }
+
+
+                //switch the user wallet to live or test
+                wallet.AppEnvironmentId = switchEnvironmentDto.EnvironmentId;
+                _dbContext.Wallets.Update(wallet);
+                await _dbContext.SaveChangesAsync();
+
+                return new ApiResponse<dynamic>
+                {
+                    Success = true,
+                    StatusCode = 200,
+                    Message = $"User environment changed to {(switchEnvironmentDto.EnvironmentId == 1 ? "Live" : "Test")}",
+                    Data = new
+                    {
+                        AppEnvironmentId = user.AppEnvironmentId
+                    }
+                };
+
+            }
+            catch (Exception ex)
+            {
+                return new ApiResponse<dynamic> { Success = false, StatusCode = 500, Message = ex.Message };
+            }
+        }
+
+        public async Task<ApiResponse<dynamic>> ShowBalanceAsync()
+        {
+            //show balance of user based on the environment he is in
+            try
+            {
+                var principal = _httpContextAccessor.HttpContext?.User;
+                if (principal == null)
+                {
+                    return new ApiResponse<dynamic> { Success = false, StatusCode = 401, Message = "Unauthorized" };
+                }
+
+                var userIdClaim = principal.FindFirst("userId")?.Value;
+                if (userIdClaim == null || !int.TryParse(userIdClaim, out int userId))
+                {
+                    return new ApiResponse<dynamic> { Success = false, StatusCode = 401, Message = "Unauthorized" };
+                }
+
+                var user = await _dbContext.Users.FirstOrDefaultAsync(u => u.Id == userId);
+                if (user == null)
+                {
+                    return new ApiResponse<dynamic> { Success = false, StatusCode = 404, Message = "User not found" };
+                }
+
+                var wallet = _dbContext.Wallets.FirstOrDefault(w => w.UserId == userId && w.AppEnvironmentId == user.AppEnvironmentId);
+                _logger.LogInformation("wallet:********* " + wallet);
+                if (wallet == null)
+                {
+                    return new ApiResponse<dynamic> { Success = false, StatusCode = 404, Message = "Wallet not found" };
+                }
+
+                return new ApiResponse<dynamic>
+                {
+                    Success = true,
+                    StatusCode = 200,
+                    Message = $"User balance in {(user.AppEnvironmentId == 1 ? "Live" : "Test")} environment",
+                    Data = new
+                    {
+                        Balance = user.AppEnvironmentId == 1 ? wallet.LiveBalance : wallet.TestBalance
+                    }
+                };
+            }
+            catch (Exception ex)
+            {
+                return new ApiResponse<dynamic> { Success = false, StatusCode = 500, Message = ex.Message };
+            }
+
+        }
     }
 }

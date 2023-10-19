@@ -22,6 +22,55 @@ namespace OctApp.Migrations
 
             SqlServerModelBuilderExtensions.UseIdentityColumns(modelBuilder);
 
+            modelBuilder.Entity("OctApp.Models.AppEnvironment", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<bool?>("IsDeleted")
+                        .HasColumnType("bit");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<int>("Value")
+                        .HasColumnType("int");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("AppEnvironments");
+
+                    b.HasData(
+                        new
+                        {
+                            Id = 1,
+                            CreatedAt = new DateTime(2023, 10, 19, 8, 29, 46, 574, DateTimeKind.Local).AddTicks(4500),
+                            IsDeleted = false,
+                            Name = "Live",
+                            UpdatedAt = new DateTime(2023, 10, 19, 8, 29, 46, 574, DateTimeKind.Local).AddTicks(4520),
+                            Value = 1
+                        },
+                        new
+                        {
+                            Id = 2,
+                            CreatedAt = new DateTime(2023, 10, 19, 8, 29, 46, 574, DateTimeKind.Local).AddTicks(4530),
+                            IsDeleted = false,
+                            Name = "Test",
+                            UpdatedAt = new DateTime(2023, 10, 19, 8, 29, 46, 574, DateTimeKind.Local).AddTicks(4530),
+                            Value = 2
+                        });
+                });
+
             modelBuilder.Entity("OctApp.Models.Token", b =>
                 {
                     b.Property<int>("Id")
@@ -51,6 +100,46 @@ namespace OctApp.Migrations
                     b.ToTable("Tokens");
                 });
 
+            modelBuilder.Entity("OctApp.Models.Transaction", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<decimal>("Amount")
+                        .HasColumnType("decimal(18, 2)");
+
+                    b.Property<int>("AppEnvironmentId")
+                        .HasColumnType("int");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<bool?>("IsDeleted")
+                        .HasColumnType("bit");
+
+                    b.Property<string>("Recipient")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("Sender")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("Symbol")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("Transactions");
+                });
+
             modelBuilder.Entity("OctApp.Models.User", b =>
                 {
                     b.Property<int>("Id")
@@ -60,6 +149,9 @@ namespace OctApp.Migrations
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
 
                     b.Property<int>("Age")
+                        .HasColumnType("int");
+
+                    b.Property<int>("AppEnvironmentId")
                         .HasColumnType("int");
 
                     b.Property<DateTime>("CreatedAt")
@@ -111,15 +203,16 @@ namespace OctApp.Migrations
 
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
 
-                    b.Property<string>("Address")
+                    b.Property<string>("AccountName")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("AccountNumber")
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
 
                     b.Property<int>("AppEnvironmentId")
                         .HasColumnType("int");
-
-                    b.Property<decimal>("Balance")
-                        .HasColumnType("decimal(18, 2)");
 
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("datetime2");
@@ -127,19 +220,25 @@ namespace OctApp.Migrations
                     b.Property<bool?>("IsDeleted")
                         .HasColumnType("bit");
 
-                    b.Property<string>("Name")
+                    b.Property<decimal>("LiveBalance")
+                        .HasColumnType("decimal(18, 2)");
+
+                    b.Property<string>("LivePrivateKey")
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
 
-                    b.Property<string>("PrivateKey")
+                    b.Property<string>("LivePublicKey")
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
 
-                    b.Property<string>("PublicKey")
+                    b.Property<decimal>("TestBalance")
+                        .HasColumnType("decimal(18, 2)");
+
+                    b.Property<string>("TestPrivateKey")
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
 
-                    b.Property<string>("Symbol")
+                    b.Property<string>("TestPublicKey")
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
 

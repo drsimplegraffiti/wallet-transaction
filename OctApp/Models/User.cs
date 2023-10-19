@@ -25,6 +25,8 @@ namespace OctApp.Models
 
         public int Age { get; set; }
 
+        public int AppEnvironmentId { get; set; } = 2;
+
         [Required]
         [Range(1, 3)]
         public Role Role { get; set; } = Role.User;

@@ -8,6 +8,6 @@ namespace OctApp.Models
     public class AppEnvironment: BaseEntity
     {
         public string Name { get; set; } = string.Empty;
-        public string Value { get; set; } = string.Empty;
+        public int Value { get; set; } 
     }
 }

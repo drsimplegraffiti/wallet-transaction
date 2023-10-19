@@ -12,6 +12,10 @@ namespace OctApp.Services.Interface
         Task<ApiResponse<dynamic>> CreateWalletAsync(CreateWalletOthersDto createWalletDto);
 
         Task<ApiResponse<dynamic>> TransferAsync(TransferFundDto transferDto);
+
+        Task<ApiResponse<dynamic>> SwitchEnvironmentAsync(SwitchEnvironmentDto switchEnvironmentDto);
+
+        Task<ApiResponse<dynamic>> ShowBalanceAsync();
 }
 
 }

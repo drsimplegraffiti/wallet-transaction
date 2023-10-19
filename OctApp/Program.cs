@@ -1,4 +1,5 @@
 using System.Text;
+using System.Text.Json.Serialization;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using Newtonsoft.Json.Serialization;
@@ -39,6 +40,7 @@ builder.Services.AddScoped<IPasswordService, PasswordService>();
 builder.Services.AddScoped<ITokenService, TokenService>();
 builder.Services.AddScoped<IWalletService, WalletService>();
 builder.Services.AddScoped<IUserService, UserService>();
+builder.Services.AddScoped<IKeyService, KeyService>();
 builder.Services.AddAuthentication("Bearer")
     .AddJwtBearer("Bearer", options =>
     {
@@ -54,14 +56,8 @@ builder.Services.AddAuthentication("Bearer")
         };
     })
     .AddCookie();
-builder.Services.AddControllers();
-// .AddNewtonsoftJson(options =>
-// {
-//     options.SerializerSettings.ContractResolver = new DefaultContractResolver
-//     {
-//         NamingStrategy = new SnakeCaseNamingStrategy()
-//     };
-// });
+builder.Services.AddControllers().AddJsonOptions(x =>
+                x.JsonSerializerOptions.ReferenceHandler = ReferenceHandler.IgnoreCycles);
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 
