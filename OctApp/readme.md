@@ -863,3 +863,21 @@ namespace OctApp.Services.Impl
 
 
 
+
+
+##### Export ASPNETCORE_ENVIRONMENT variable
+This is to set the environment variable for the application. This is important for the application to know which environment it is running on. The environment variable can be set to Development, Staging or Production. The environment variable can be set in the terminal using the export command.
+
+Run this command in the terminal to set the environment variable first before running the migration and then the migration.
+# For Development environment
+export ASPNETCORE_ENVIRONMENT=Development
+
+# For Production environment
+export ASPNETCORE_ENVIRONMENT=Production
+
+# For Staging environment
+export ASPNETCORE_ENVIRONMENT=Staging
+
+# Migration
+dotnet ef migrations add InitialCreate
+dotnet ef database update

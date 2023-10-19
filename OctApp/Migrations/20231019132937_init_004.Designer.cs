@@ -3,6 +3,7 @@ using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using OctApp.Data;
 
@@ -11,9 +12,11 @@ using OctApp.Data;
 namespace OctApp.Migrations
 {
     [DbContext(typeof(DataContext))]
-    partial class DataContextModelSnapshot : ModelSnapshot
+    [Migration("20231019132937_init_004")]
+    partial class init_004
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -54,19 +57,19 @@ namespace OctApp.Migrations
                         new
                         {
                             Id = 1,
-                            CreatedAt = new DateTime(2023, 10, 19, 14, 47, 3, 937, DateTimeKind.Local).AddTicks(2740),
+                            CreatedAt = new DateTime(2023, 10, 19, 14, 29, 37, 264, DateTimeKind.Local).AddTicks(4740),
                             IsDeleted = false,
                             Name = "Live",
-                            UpdatedAt = new DateTime(2023, 10, 19, 14, 47, 3, 937, DateTimeKind.Local).AddTicks(2770),
+                            UpdatedAt = new DateTime(2023, 10, 19, 14, 29, 37, 264, DateTimeKind.Local).AddTicks(4790),
                             Value = 1
                         },
                         new
                         {
                             Id = 2,
-                            CreatedAt = new DateTime(2023, 10, 19, 14, 47, 3, 937, DateTimeKind.Local).AddTicks(2780),
+                            CreatedAt = new DateTime(2023, 10, 19, 14, 29, 37, 264, DateTimeKind.Local).AddTicks(4790),
                             IsDeleted = false,
                             Name = "Test",
-                            UpdatedAt = new DateTime(2023, 10, 19, 14, 47, 3, 937, DateTimeKind.Local).AddTicks(2780),
+                            UpdatedAt = new DateTime(2023, 10, 19, 14, 29, 37, 264, DateTimeKind.Local).AddTicks(4790),
                             Value = 2
                         });
                 });

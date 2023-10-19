@@ -30,6 +30,18 @@ builder.Host.UseSerilog((context, config) =>
 // Add services and configurations
 builder.Services.ConfigureSwagger();
 builder.Services.AddHttpContextAccessor();
+
+//check if the environment is development or production and add the database connection string
+if (builder.Environment.IsDevelopment())
+{
+    builder.Configuration.AddJsonFile("appsettings.Development.json", optional: true, reloadOnChange: true);
+}
+else if (builder.Environment.IsProduction())
+{
+    builder.Configuration.AddJsonFile("appsettings.Production.json", optional: true, reloadOnChange: true);
+}
+
+
 builder.Services.AddDbContext<DataContext>(options =>
 {
     options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection"));
@@ -65,6 +77,11 @@ var app = builder.Build();
 
 // Configure the HTTP request pipeline
 if (app.Environment.IsDevelopment())
+{
+    app.UseSwagger();
+    app.UseSwaggerUI();
+}
+else if (app.Environment.IsProduction())
 {
     app.UseSwagger();
     app.UseSwaggerUI();
