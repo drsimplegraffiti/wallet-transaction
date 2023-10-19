@@ -52,7 +52,7 @@ namespace OctApp.Services.Impl
                     var principal = _httpContextAccessor.HttpContext!.User;
                     if (principal == null)
                     {
-                        return new ApiResponse<dynamic> { Success = false, StatusCode = 401, Message = "Unauthorized" };
+                        return ApiResponse<dynamic>.UnauthorizedResponse();
                     }
                     var userIdClaim = principal.Claims.FirstOrDefault(c => c.Type == "userId")?.Value;
 
@@ -60,7 +60,7 @@ namespace OctApp.Services.Impl
 
                     if (userIdClaim == null || !int.TryParse(userIdClaim, out int userId))
                     {
-                        return new ApiResponse<dynamic> { Success = false, StatusCode = 401, Message = "Unauthorized" };
+                        return ApiResponse<dynamic>.UnauthorizedResponse();
                     }
 
                     // Generate test wallet keys
@@ -93,23 +93,17 @@ namespace OctApp.Services.Impl
 
                     transaction.Commit();
 
-                    return new ApiResponse<dynamic>
+                     return ApiResponse<dynamic>.OkResponse(new
                     {
-                        Success = true,
-                        StatusCode = 200,
-                        Data = new
-                        {
-
-
-                        }
-                    };
+                        walletId = wallet.Id,
+                    }, "Wallet created successfully");
 
 
                 }
                 catch (Exception e)
                 {
                     transaction.Rollback();
-                    return new ApiResponse<dynamic> { Success = false, StatusCode = 500, Message = e.Message };
+                    return ApiResponse<dynamic>.InternalServerErrorResponse(e.Message);
                 }
             }
         }
@@ -124,19 +118,19 @@ namespace OctApp.Services.Impl
             var principal = _httpContextAccessor.HttpContext?.User;
             if (principal == null)
             {
-                return new ApiResponse<dynamic> { Success = false, StatusCode = 401, Message = "Unauthorized" };
+                return ApiResponse<dynamic>.UnauthorizedResponse();
             }
 
             var userIdClaim = principal.FindFirst("userId")?.Value;
             if (string.IsNullOrEmpty(userIdClaim) || !int.TryParse(userIdClaim, out int userId))
             {
-                return new ApiResponse<dynamic> { Success = false, StatusCode = 401, Message = "Unauthorized" };
+                return ApiResponse<dynamic>.UnauthorizedResponse();
             }
 
             var user = _dbContext.Users.FirstOrDefault(u => u.Id == userId);
             if (user == null)
             {
-                return new ApiResponse<dynamic> { Success = false, StatusCode = 404, Message = "User not found" };
+                return ApiResponse<dynamic>.NotFoundResponse("User not found");
             }
 
             // Check the user's environment
@@ -145,13 +139,13 @@ namespace OctApp.Services.Impl
 
             if (wallet == null)
             {
-                return new ApiResponse<dynamic> { Success = false, StatusCode = 404, Message = "Wallet not found" };
+                return ApiResponse<dynamic>.NotFoundResponse("Wallet not found");
             }
 
             // ensure you cant transfer money to 
             if (transferDto.RecipientAccountNumber == wallet.AccountNumber)
             {
-                return new ApiResponse<dynamic> { Success = false, StatusCode = 400, Message = "You can't transfer money to yourself" };
+                return ApiResponse<dynamic>.BadRequestResponse("You can't transfer money to yourself");
             }
 
             // Check if the sender has enough balance
@@ -159,14 +153,14 @@ namespace OctApp.Services.Impl
 
             if (senderBalance < transferDto.Amount)
             {
-                return new ApiResponse<dynamic> { Success = false, StatusCode = 400, Message = "Insufficient balance" };
+                return ApiResponse<dynamic>.BadRequestResponse("Insufficient balance");
             }
 
             // Check if the recipient exists
             var recipient = _dbContext.Wallets.FirstOrDefault(u => u.AccountNumber == transferDto.RecipientAccountNumber);
             if (recipient == null)
             {
-                return new ApiResponse<dynamic> { Success = false, StatusCode = 404, Message = "Recipient not found" };
+                return ApiResponse<dynamic>.NotFoundResponse("Recipient not found");
             }
 
             // Check if the recipient has a wallet
@@ -174,7 +168,7 @@ namespace OctApp.Services.Impl
 
             if (recipientWallet == null)
             {
-                return new ApiResponse<dynamic> { Success = false, StatusCode = 404, Message = "Recipient wallet not found" };
+                return ApiResponse<dynamic>.NotFoundResponse("Recipient wallet not found");
             }
 
             // Update the sender's balance
@@ -218,22 +212,17 @@ namespace OctApp.Services.Impl
 
             transaction.Commit();
 
-            return new ApiResponse<dynamic>
+            return ApiResponse<dynamic>.OkResponse(new
             {
-                Success = true,
-                StatusCode = 200,
-                Message = "Transfer successful",
-                Data = new
-                {
-                    transaction = transactionRecord,
-                    senderBalance = appEnvironment == 1 ? wallet.LiveBalance : wallet.TestBalance,
-                }
-            };
+                transaction = transactionRecord,
+                senderBalance = appEnvironment == 1 ? wallet.LiveBalance : wallet.TestBalance,
+            }, "Transfer successful");
+
         }
         catch (Exception e)
         {
             transaction.Rollback();
-            return new ApiResponse<dynamic> { Success = false, StatusCode = 500, Message = e.Message };
+            return ApiResponse<dynamic>.InternalServerErrorResponse(e.Message);
         }
     }
 }
@@ -246,33 +235,27 @@ namespace OctApp.Services.Impl
                 var principal = _httpContextAccessor.HttpContext?.User;
                 if (principal == null)
                 {
-                    return new ApiResponse<dynamic> { Success = false, StatusCode = 401, Message = "Unauthorized" };
+                    return ApiResponse<dynamic>.UnauthorizedResponse();
                 }
 
                 var userIdClaim = principal.FindFirst("userId")?.Value;
                 if (userIdClaim == null || !int.TryParse(userIdClaim, out int userId))
                 {
-                    return new ApiResponse<dynamic> { Success = false, StatusCode = 401, Message = "Unauthorized" };
+                    return ApiResponse<dynamic>.UnauthorizedResponse();
                 }
 
                 var user = _dbContext.Users.FirstOrDefault(u => u.Id == userId);
                 if (user == null)
                 {
-                    return new ApiResponse<dynamic> { Success = false, StatusCode = 404, Message = "User not found" };
+                    return ApiResponse<dynamic>.NotFoundResponse("User not found");
                 }
                 //check if user is already in the environment he wants to switch to
                 if (user.AppEnvironmentId == switchEnvironmentDto.EnvironmentId)
                 {
-                    return new ApiResponse<dynamic>
+                    return ApiResponse<dynamic>.OkResponse(new
                     {
-                        Success = true,
-                        StatusCode = 200,
-                        Message = $"User is already in {(switchEnvironmentDto.EnvironmentId == 1 ? "Live" : "Test")} environment",
-                        Data = new
-                        {
-                            AppEnvironmentId = user.AppEnvironmentId
-                        }
-                    };
+                        AppEnvironmentId = user.AppEnvironmentId
+                    }, $"User is already in {(switchEnvironmentDto.EnvironmentId == 1 ? "Live" : "Test")} environment");
                 }
                 // change the user environment to live or test
                 user.AppEnvironmentId = switchEnvironmentDto.EnvironmentId;
@@ -283,7 +266,7 @@ namespace OctApp.Services.Impl
                 var wallet = _dbContext.Wallets.FirstOrDefault(w => w.UserId == userId);
                 if (wallet == null)
                 {
-                    return new ApiResponse<dynamic> { Success = false, StatusCode = 404, Message = "Wallet not found" };
+                    return ApiResponse<dynamic>.NotFoundResponse("Wallet not found");
                 }
 
 
@@ -292,21 +275,15 @@ namespace OctApp.Services.Impl
                 _dbContext.Wallets.Update(wallet);
                 await _dbContext.SaveChangesAsync();
 
-                return new ApiResponse<dynamic>
+                return ApiResponse<dynamic>.OkResponse(new
                 {
-                    Success = true,
-                    StatusCode = 200,
-                    Message = $"User environment changed to {(switchEnvironmentDto.EnvironmentId == 1 ? "Live" : "Test")}",
-                    Data = new
-                    {
-                        AppEnvironmentId = user.AppEnvironmentId
-                    }
-                };
+                    AppEnvironmentId = user.AppEnvironmentId
+                }, $"User environment changed to {(switchEnvironmentDto.EnvironmentId == 1 ? "Live" : "Test")}");
 
             }
             catch (Exception ex)
             {
-                return new ApiResponse<dynamic> { Success = false, StatusCode = 500, Message = ex.Message };
+                return ApiResponse<dynamic>.InternalServerErrorResponse(ex.Message);
             }
         }
 
@@ -318,42 +295,35 @@ namespace OctApp.Services.Impl
                 var principal = _httpContextAccessor.HttpContext?.User;
                 if (principal == null)
                 {
-                    return new ApiResponse<dynamic> { Success = false, StatusCode = 401, Message = "Unauthorized" };
+                    return ApiResponse<dynamic>.UnauthorizedResponse();
                 }
 
                 var userIdClaim = principal.FindFirst("userId")?.Value;
                 if (userIdClaim == null || !int.TryParse(userIdClaim, out int userId))
                 {
-                    return new ApiResponse<dynamic> { Success = false, StatusCode = 401, Message = "Unauthorized" };
+                    return ApiResponse<dynamic>.UnauthorizedResponse();
                 }
 
                 var user = await _dbContext.Users.FirstOrDefaultAsync(u => u.Id == userId);
                 if (user == null)
                 {
-                    return new ApiResponse<dynamic> { Success = false, StatusCode = 404, Message = "User not found" };
+                    return ApiResponse<dynamic>.NotFoundResponse("User not found");
                 }
 
                 var wallet = _dbContext.Wallets.FirstOrDefault(w => w.UserId == userId && w.AppEnvironmentId == user.AppEnvironmentId);
                 _logger.LogInformation("wallet:********* " + wallet);
                 if (wallet == null)
                 {
-                    return new ApiResponse<dynamic> { Success = false, StatusCode = 404, Message = "Wallet not found" };
+                    return ApiResponse<dynamic>.NotFoundResponse("Wallet not found");
                 }
-
-                return new ApiResponse<dynamic>
+                return ApiResponse<dynamic>.OkResponse(new
                 {
-                    Success = true,
-                    StatusCode = 200,
-                    Message = $"User balance in {(user.AppEnvironmentId == 1 ? "Live" : "Test")} environment",
-                    Data = new
-                    {
-                        Balance = user.AppEnvironmentId == 1 ? wallet.LiveBalance : wallet.TestBalance
-                    }
-                };
+                    Balance = user.AppEnvironmentId == 1 ? wallet.LiveBalance : wallet.TestBalance
+                }, $"User balance in {(user.AppEnvironmentId == 1 ? "Live" : "Test")} environment");
             }
             catch (Exception ex)
             {
-                return new ApiResponse<dynamic> { Success = false, StatusCode = 500, Message = ex.Message };
+                return ApiResponse<dynamic>.InternalServerErrorResponse(ex.Message);
             }
 
         }
