@@ -7,9 +7,8 @@ namespace OctApp.Dto.Request
 {
     public class TransferFundDto
     {
-        public string Sender { get; set; } = string.Empty;
-        public string Recipient { get; set; }  = string.Empty;
+        // public string SenderAccountNumber { get; set; } = string.Empty;
+        public string RecipientAccountNumber { get; set; }  = string.Empty;
         public decimal Amount { get; set; } = 0;
-        public string Symbol { get; set; } = string.Empty;
     }
 }
