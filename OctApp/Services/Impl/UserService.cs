@@ -329,10 +329,6 @@ namespace OctApp.Services.Impl
                 return ApiResponse<dynamic>.InternalServerErrorResponse(ex.Message);
             }
 
-            //         var baseUrl = "http://localhost:5037/";
-
-
-
         }
 
         public async Task<string> GetBanksAsync()
@@ -343,13 +339,13 @@ namespace OctApp.Services.Impl
                 var request = new RestRequest("api/Bank", Method.Get);
                 request.AddHeader("Content-Type", "application/json");
                 var response = await client.ExecuteAsync(request);
-                _logger.LogInformation("response:********* " + response.Content);
                 var dataInfo = new {
                     Banks = response.Content,
                     StatusCode = response.StatusCode,
                     StatusDescription = response.StatusDescription,
                     ErrorMessage = response.ErrorMessage,
                 };
+                
                 return response.Content ?? "No content";
             }
             catch (Exception)

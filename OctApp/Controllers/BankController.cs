@@ -11,7 +11,7 @@ namespace OctApp.Controllers
 
     [ApiController]
     [Route("api/[controller]")]
-    public class BankController: ControllerBase
+    public class BankController : ControllerBase
     {
 
         private readonly ILogger<BankController> _logger;
@@ -51,6 +51,26 @@ namespace OctApp.Controllers
             {
                 _logger.LogError(e, "Error occurred while creating bank");
                 return StatusCode(500, "Error occurred while creating bank");
+            }
+        }
+
+
+        [HttpPost("login")]
+        public async Task<IActionResult> LoginAsync([FromBody] LoginDto loginDto)
+        {
+            try
+            {
+                var response = await _banksService.LoginAsync(loginDto);
+                if (response.Contains("400") || response.Contains("500"))
+                {
+                    return BadRequest(response);
+                }
+                return Ok(response);
+            }
+            catch (Exception e)
+            {
+                _logger.LogError(e, "Error occurred while logging in");
+                return StatusCode(500, "Error occurred while logging in");
             }
         }
 

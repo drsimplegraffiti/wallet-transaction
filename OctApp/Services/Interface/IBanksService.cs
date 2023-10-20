@@ -11,5 +11,15 @@ namespace OctApp.Services.Interface
     {
         Task<ApiResponse<dynamic>> GetBanksAsync();
         Task<ApiResponse<dynamic>> CreateBankAsync(BankDto bankDto);
+
+        Task<string> LoginAsync(LoginDto loginDto);
+    }
+
+    public class UserLoginResponseDto
+    {
+
+       public string Token { get; set; } = string.Empty;
+       public string RefreshToken { get; set; } = string.Empty;
+
     }
 }
