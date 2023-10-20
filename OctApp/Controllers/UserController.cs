@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using OctApp.Dto.Request;
 using OctApp.Services.Interface;
@@ -68,5 +69,14 @@ namespace OctApp.Controllers
             }
             return Ok(response);
         }
+
+        [HttpGet("banks")]
+        [SkipTokenValidation]
+        public async Task<IActionResult> GetBanksAsync()
+        {
+            var response = await _userService.GetBanksAsync();
+            return Ok(response);
+        }
+
     }
 }

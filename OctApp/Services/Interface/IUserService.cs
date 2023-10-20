@@ -1,7 +1,4 @@
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Threading.Tasks;
+
 using OctApp.Dto.Request;
 using OctApp.Dto.Response;
 
@@ -16,6 +13,8 @@ namespace OctApp.Services.Interface
         Task<ApiResponse<dynamic>> SwitchEnvironmentAsync(SwitchEnvironmentDto switchEnvironmentDto);
 
         Task<ApiResponse<dynamic>> ShowBalanceAsync();
+
+        Task<string> GetBanksAsync();
 }
 
 }

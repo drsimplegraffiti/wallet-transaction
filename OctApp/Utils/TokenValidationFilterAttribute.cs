@@ -33,6 +33,17 @@ namespace OctApp.Utils
 
         public void OnActionExecuting(ActionExecutingContext context)
         {
+            // skip token validation if the method is decorated with [SkipTokenValidation]
+            var skipTokenValidation = context.ActionDescriptor?.EndpointMetadata
+                .Any(em => em is SkipTokenValidationAttribute) == true;
+
+            if (skipTokenValidation)
+            {
+                _logger.LogInformation("OnActionExecuting==================== Skip token validation");
+                return; // Skip token validation if the custom attribute is present
+            }
+
+
             var token = context.HttpContext.Request.Headers["Authorization"].FirstOrDefault()?.Split(" ").Last();
             if (token == null)
             {

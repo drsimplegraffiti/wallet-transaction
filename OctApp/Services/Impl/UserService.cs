@@ -1,8 +1,10 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Net;
 using System.Threading.Tasks;
 using Microsoft.EntityFrameworkCore;
+using Newtonsoft.Json;
 using OctApp.Data;
 using OctApp.Dto.Request;
 using OctApp.Dto.Response;
@@ -10,6 +12,7 @@ using OctApp.Models;
 using OctApp.Services.Interface;
 using OctApp.Utils;
 using OctApp.Utils.Interface;
+using RestSharp;
 
 namespace OctApp.Services.Impl
 {
@@ -93,7 +96,7 @@ namespace OctApp.Services.Impl
 
                     transaction.Commit();
 
-                     return ApiResponse<dynamic>.OkResponse(new
+                    return ApiResponse<dynamic>.OkResponse(new
                     {
                         walletId = wallet.Id,
                     }, "Wallet created successfully");
@@ -109,123 +112,123 @@ namespace OctApp.Services.Impl
         }
 
 
-     public async Task<ApiResponse<dynamic>> TransferAsync(TransferFundDto transferDto)
-{
-    using (var transaction = _dbContext.Database.BeginTransaction())
-    {
-        try
+        public async Task<ApiResponse<dynamic>> TransferAsync(TransferFundDto transferDto)
         {
-            var principal = _httpContextAccessor.HttpContext?.User;
-            if (principal == null)
+            using (var transaction = _dbContext.Database.BeginTransaction())
             {
-                return ApiResponse<dynamic>.UnauthorizedResponse();
+                try
+                {
+                    var principal = _httpContextAccessor.HttpContext?.User;
+                    if (principal == null)
+                    {
+                        return ApiResponse<dynamic>.UnauthorizedResponse();
+                    }
+
+                    var userIdClaim = principal.FindFirst("userId")?.Value;
+                    if (string.IsNullOrEmpty(userIdClaim) || !int.TryParse(userIdClaim, out int userId))
+                    {
+                        return ApiResponse<dynamic>.UnauthorizedResponse();
+                    }
+
+                    var user = _dbContext.Users.FirstOrDefault(u => u.Id == userId);
+                    if (user == null)
+                    {
+                        return ApiResponse<dynamic>.NotFoundResponse("User not found");
+                    }
+
+                    // Check the user's environment
+                    var appEnvironment = user.AppEnvironmentId;
+                    var wallet = _dbContext.Wallets.FirstOrDefault(w => w.UserId == userId && w.AppEnvironmentId == appEnvironment);
+
+                    if (wallet == null)
+                    {
+                        return ApiResponse<dynamic>.NotFoundResponse("Wallet not found");
+                    }
+
+                    // ensure you cant transfer money to 
+                    if (transferDto.RecipientAccountNumber == wallet.AccountNumber)
+                    {
+                        return ApiResponse<dynamic>.BadRequestResponse("You can't transfer money to yourself");
+                    }
+
+                    // Check if the sender has enough balance
+                    decimal senderBalance = appEnvironment == 1 ? wallet.LiveBalance : wallet.TestBalance;
+
+                    if (senderBalance < transferDto.Amount)
+                    {
+                        return ApiResponse<dynamic>.BadRequestResponse("Insufficient balance");
+                    }
+
+                    // Check if the recipient exists
+                    var recipient = _dbContext.Wallets.FirstOrDefault(u => u.AccountNumber == transferDto.RecipientAccountNumber);
+                    if (recipient == null)
+                    {
+                        return ApiResponse<dynamic>.NotFoundResponse("Recipient not found");
+                    }
+
+                    // Check if the recipient has a wallet
+                    var recipientWallet = _dbContext.Wallets.FirstOrDefault(w => w.UserId == recipient.Id && w.AppEnvironmentId == appEnvironment);
+
+                    if (recipientWallet == null)
+                    {
+                        return ApiResponse<dynamic>.NotFoundResponse("Recipient wallet not found");
+                    }
+
+                    // Update the sender's balance
+                    if (appEnvironment == 1)
+                    {
+                        wallet.LiveBalance -= transferDto.Amount;
+                    }
+                    else if (appEnvironment == 2)
+                    {
+                        wallet.TestBalance -= transferDto.Amount;
+                    }
+
+                    _dbContext.Wallets.Update(wallet);
+
+                    // Update the recipient's balance
+                    if (appEnvironment == 1)
+                    {
+                        recipientWallet.LiveBalance += transferDto.Amount;
+                    }
+                    else if (appEnvironment == 2)
+                    {
+                        recipientWallet.TestBalance += transferDto.Amount;
+                    }
+
+                    _dbContext.Wallets.Update(recipientWallet);
+
+                    // Create a transaction record
+                    var transactionRecord = new Transaction
+                    {
+                        // Sender = user.Email, use sender account number
+                        Sender = wallet.AccountNumber,
+                        Recipient = recipient.AccountNumber,
+                        Amount = transferDto.Amount,
+                        AppEnvironmentId = appEnvironment,
+                        CreatedAt = DateTime.UtcNow,
+                        UpdatedAt = DateTime.UtcNow
+                    };
+
+                    _dbContext.Transactions.Add(transactionRecord);
+                    await _dbContext.SaveChangesAsync();
+
+                    transaction.Commit();
+
+                    return ApiResponse<dynamic>.OkResponse(new
+                    {
+                        transaction = transactionRecord,
+                        senderBalance = appEnvironment == 1 ? wallet.LiveBalance : wallet.TestBalance,
+                    }, "Transfer successful");
+
+                }
+                catch (Exception e)
+                {
+                    transaction.Rollback();
+                    return ApiResponse<dynamic>.InternalServerErrorResponse(e.Message);
+                }
             }
-
-            var userIdClaim = principal.FindFirst("userId")?.Value;
-            if (string.IsNullOrEmpty(userIdClaim) || !int.TryParse(userIdClaim, out int userId))
-            {
-                return ApiResponse<dynamic>.UnauthorizedResponse();
-            }
-
-            var user = _dbContext.Users.FirstOrDefault(u => u.Id == userId);
-            if (user == null)
-            {
-                return ApiResponse<dynamic>.NotFoundResponse("User not found");
-            }
-
-            // Check the user's environment
-            var appEnvironment = user.AppEnvironmentId;
-            var wallet = _dbContext.Wallets.FirstOrDefault(w => w.UserId == userId && w.AppEnvironmentId == appEnvironment);
-
-            if (wallet == null)
-            {
-                return ApiResponse<dynamic>.NotFoundResponse("Wallet not found");
-            }
-
-            // ensure you cant transfer money to 
-            if (transferDto.RecipientAccountNumber == wallet.AccountNumber)
-            {
-                return ApiResponse<dynamic>.BadRequestResponse("You can't transfer money to yourself");
-            }
-
-            // Check if the sender has enough balance
-            decimal senderBalance = appEnvironment == 1 ? wallet.LiveBalance : wallet.TestBalance;
-
-            if (senderBalance < transferDto.Amount)
-            {
-                return ApiResponse<dynamic>.BadRequestResponse("Insufficient balance");
-            }
-
-            // Check if the recipient exists
-            var recipient = _dbContext.Wallets.FirstOrDefault(u => u.AccountNumber == transferDto.RecipientAccountNumber);
-            if (recipient == null)
-            {
-                return ApiResponse<dynamic>.NotFoundResponse("Recipient not found");
-            }
-
-            // Check if the recipient has a wallet
-            var recipientWallet = _dbContext.Wallets.FirstOrDefault(w => w.UserId == recipient.Id && w.AppEnvironmentId == appEnvironment);
-
-            if (recipientWallet == null)
-            {
-                return ApiResponse<dynamic>.NotFoundResponse("Recipient wallet not found");
-            }
-
-            // Update the sender's balance
-            if (appEnvironment == 1)
-            {
-                wallet.LiveBalance -= transferDto.Amount;
-            }
-            else if (appEnvironment == 2)
-            {
-                wallet.TestBalance -= transferDto.Amount;
-            }
-
-            _dbContext.Wallets.Update(wallet);
-
-            // Update the recipient's balance
-            if (appEnvironment == 1)
-            {
-                recipientWallet.LiveBalance += transferDto.Amount;
-            }
-            else if (appEnvironment == 2)
-            {
-                recipientWallet.TestBalance += transferDto.Amount;
-            }
-
-            _dbContext.Wallets.Update(recipientWallet);
-
-            // Create a transaction record
-            var transactionRecord = new Transaction
-            {
-                // Sender = user.Email, use sender account number
-                Sender = wallet.AccountNumber,
-                Recipient = recipient.AccountNumber,
-                Amount = transferDto.Amount,
-                AppEnvironmentId = appEnvironment,
-                CreatedAt = DateTime.UtcNow,
-                UpdatedAt = DateTime.UtcNow
-            };
-
-            _dbContext.Transactions.Add(transactionRecord);
-            await _dbContext.SaveChangesAsync();
-
-            transaction.Commit();
-
-            return ApiResponse<dynamic>.OkResponse(new
-            {
-                transaction = transactionRecord,
-                senderBalance = appEnvironment == 1 ? wallet.LiveBalance : wallet.TestBalance,
-            }, "Transfer successful");
-
         }
-        catch (Exception e)
-        {
-            transaction.Rollback();
-            return ApiResponse<dynamic>.InternalServerErrorResponse(e.Message);
-        }
-    }
-}
 
 
         public async Task<ApiResponse<dynamic>> SwitchEnvironmentAsync(SwitchEnvironmentDto switchEnvironmentDto)
@@ -326,6 +329,35 @@ namespace OctApp.Services.Impl
                 return ApiResponse<dynamic>.InternalServerErrorResponse(ex.Message);
             }
 
+            //         var baseUrl = "http://localhost:5037/";
+
+
+
         }
+
+        public async Task<string> GetBanksAsync()
+        {
+            try
+            {
+                var client = new RestClient("http://localhost:5037/");
+                var request = new RestRequest("api/Bank", Method.Get);
+                request.AddHeader("Content-Type", "application/json");
+                var response = await client.ExecuteAsync(request);
+                _logger.LogInformation("response:********* " + response.Content);
+                var dataInfo = new {
+                    Banks = response.Content,
+                    StatusCode = response.StatusCode,
+                    StatusDescription = response.StatusDescription,
+                    ErrorMessage = response.ErrorMessage,
+                };
+                return response.Content ?? "No content";
+            }
+            catch (Exception)
+            {
+                throw;
+            }
+        }
+
+
     }
 }

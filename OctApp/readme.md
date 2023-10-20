@@ -881,3 +881,189 @@ export ASPNETCORE_ENVIRONMENT=Staging
 # Migration
 dotnet ef migrations add InitialCreate
 dotnet ef database update
+
+
+
+
+```csharp
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Threading.Tasks;
+using OctApp.Dto.Request;
+using OctApp.Dto.Response;
+
+namespace OctApp.Services.Interface
+{
+    public interface IBanksService
+    {
+        Task<ApiResponse<dynamic>> GetBanksAsync();
+        Task<ApiResponse<dynamic>> CreateBankAsync(BankDto bankDto);
+    }
+}
+```
+
+```csharp
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Threading.Tasks;
+using Microsoft.EntityFrameworkCore;
+using OctApp.Data;
+using OctApp.Dto.Request;
+using OctApp.Dto.Response;
+using OctApp.Models;
+using OctApp.Services.Interface;
+
+namespace OctApp.Services.Impl
+{
+    public class BankService : IBanksService
+    {
+
+        private readonly DataContext _context;
+
+        public BankService(DataContext context)
+        {
+            _context = context;
+        }
+
+        public async Task<ApiResponse<dynamic>> CreateBankAsync(BankDto bankDto)
+        {
+            var bank = new Bank
+            {
+                BankName = bankDto.BankName,
+                BankCode = bankDto.BankCode,
+                BankId = bankDto.BankId
+            };
+
+            await _context.Banks.AddAsync(bank);
+            await _context.SaveChangesAsync();
+
+            return ApiResponse<dynamic>.OkResponse(bank, "Bank created successfully");
+        }
+
+        public async Task<ApiResponse<dynamic>> GetBanksAsync()
+        {
+            var banks = await _context.Banks.ToListAsync();
+            var response = new { banks };
+            return ApiResponse<dynamic>.OkResponse(response, "Banks retrieved successfully");
+        }
+    }
+}
+```
+
+
+```csharp
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Threading.Tasks;
+using Microsoft.AspNetCore.Mvc;
+using OctApp.Dto.Request;
+using OctApp.Services.Interface;
+
+namespace OctApp.Controllers
+{
+
+    [ApiController]
+    [Route("api/[controller]")]
+    public class BankController: ControllerBase
+    {
+
+        private readonly ILogger<BankController> _logger;
+        private readonly IBanksService _banksService;
+
+        public BankController(IBanksService banksService, ILogger<BankController> logger)
+        {
+            _banksService = banksService;
+            _logger = logger;
+        }
+
+        [HttpGet]
+        public async Task<IActionResult> GetBanksAsync()
+        {
+            try
+            {
+                var response = await _banksService.GetBanksAsync();
+                return Ok(response);
+            }
+            catch (Exception e)
+            {
+                _logger.LogError(e, "Error occurred while retrieving banks");
+                return StatusCode(500, "Error occurred while retrieving banks");
+            }
+        }
+
+
+        [HttpPost]
+        public async Task<IActionResult> CreateBankAsync([FromBody] BankDto bankDto)
+        {
+            try
+            {
+                var response = await _banksService.CreateBankAsync(bankDto);
+                return Ok(response);
+            }
+            catch (Exception e)
+            {
+                _logger.LogError(e, "Error occurred while creating bank");
+                return StatusCode(500, "Error occurred while creating bank");
+            }
+        }
+
+
+    }
+}
+```
+
+
+##### install RestSharp
+dotnet add package RestSharp
+
+###### Create reusable RestClientHelper
+
+```csharp
+
+using RestSharp;
+
+namespace OctApp.Utils
+{
+    public class RestClientHelper
+    {
+        private readonly RestClient _restClient;
+
+        public RestClientHelper(string baseUrl)
+        {
+            _restClient = new RestClient(baseUrl);
+        }
+
+        public T Execute<T>(RestRequest request) where T : new()
+        {
+            try
+            {
+                var response = _restClient.Execute<T>(request);
+
+                if (response.ErrorException != null)
+                {
+                    throw new Exception($"Error: {response.ErrorMessage}", response.ErrorException);
+                }
+
+                return response.Data ?? new T();
+            }
+            catch (Exception)
+            {
+
+                throw;
+            }
+        }
+    }
+}
+
+```
+
+
+In the IUserService get all banks using the rest client helper
+
+```csharp
+Task<ApiResponse<dynamic>> GetBanksAsync();
+```
+
